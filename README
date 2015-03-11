@@ -1,0 +1,17 @@
+Docker, Ansible, and systemd
+===============================
+
+This presentation was a given at [Hacker School](https://www.hackerschool.com/) on 11 March 2015.
+
+
+Fully rendered slides are available on the [project page](https://chimeracoder.github.io/docker-hackerschool/#1)
+
+
+##### License
+
+All slides provided under the [CC-BY-SA](http://creativecommons.org/licenses/by-sa/3.0/deed.en_US) license.
+
+All code is provided under version 3 of the GNU Public License (GPLv3), unless otherwise noted.
+
+The Go gopher logo was designed [by Renée French](http://reneefrench.blogspot.com/) and is provided under the [Creative Commons Attribution 3.0 license](http://creativecommons.org/licenses/by/3.0/).
+
