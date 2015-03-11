@@ -1,0 +1,647 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Docker: Getting Started</title>
+    <meta charset='utf-8'>
+    <script src='static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+
+    <section class='slides layout-widescreen'>
+      
+      <article>
+        <h1>Docker: Getting Started</h1>
+        <h3>Hacker School</h3>
+        <h3>11 March 2015</h3>
+        
+          <div class="presenter">
+            
+  
+  <p>
+    Aditya Mukerjee
+  </p>
+  
+
+          </div>
+        
+          <div class="presenter">
+            
+          </div>
+        
+      </article>
+      
+  
+  
+      <article>
+      
+        <h3></h3>
+        
+<div class="image">
+  <img src="88x31.png">
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h2>Why Containers Matter</h2>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Sysadmin Life (the old days)</h3>
+        
+  <ul>
+  
+    <li>Wake up in the middle of the night to a call - server is down!</li>
+  
+    <li>Notice a massive traffic spike - try and provision an old sever to handle it</li>
+  
+    <li>use an old machine that you had lying around</li>
+  
+    <li>uh-oh... which version of glibc did I have last time?</li>
+  
+    <li>wait... now my package manager is complaining about cyclic dependencies</li>
+  
+    <li>...did something change upstream?</li>
+  
+    <li>... ... and did I remember to twiddle db.conf?</li>
+  
+    <li>... why did we take this machine offline, anyway?</li>
+  
+    <li>Server is in an inconsistent state - $%@#!!!!!!!</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>DevOps life (today)</h3>
+        
+  <ul>
+  
+    <li>Wake up in the middle of the night to a call - server is down!</li>
+  
+    <li>Run a single command that provisions a new server to a known working state</li>
+  
+    <li>Go back to sleep.</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h2>We have version control for code. Why not servers?</h2>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h2>History of Containerization</h2>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Ancestry: nice, cpulimit</h3>
+        
+  <ul>
+  
+    <li><b>nice</b> lowers priority</li>
+  
+    <li>cpulimit repeatedly sends SIGSTOP (kill -19) and SIGCONT (kill -18) to processes</li>
+  
+    <li>Disadvantages: blunt, brittle, manual</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Birth: cgroups</h3>
+        
+  <ul>
+  
+    <li><b>cgroups</b> (formerly &#34;control groups&#34;) in Linux were released in 2007</li>
+  
+    <li>Limits access to resources for a collection of processes at a time</li>
+  
+    <li>e.g. &#34;Make sure ffmpeg doesn&#39;t take up too much CPU/RAM&#34;</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Adolescence: LXC</h3>
+        
+  <ul>
+  
+    <li><b>LXC</b> (&#34;Linux Containers&#34;) was introduced in 2008</li>
+  
+    <li>LXC ≈ cgroups + namespace isolation</li>
+  
+    <li>Prevent processes from even &#34;seeing&#34; unavailable resources</li>
+  
+    <li>Available in the kernel, but inconvenient to use in userland</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Today: Docker, systemd-nspawn, and others</h3>
+        
+  <ul>
+  
+    <li>Docker† and systemd-nspawn both provide userland utilities for using LXC-based containers</li>
+  
+    <li>Docker is a bit older and more widely used</li>
+  
+    <li>systemd-nspawn has some attractive features that Docker currently lacks</li>
+  
+  </ul>
+
+  
+  <p>
+    (†Technically Docker now uses libcontainer instead of lxc, but that&#39;s not an issue for us, and in any case I think I just well-actually-ed myself)
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h2>Wait what the heck is this &#34;systemd&#34; thing anyway?</h2>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>What You Need To Know About Systemd</h3>
+        
+  <ul>
+  
+    <li>Use systemd.</li>
+  
+    <li>(Or don&#39;t, but we&#39;re only going to cover systemd.)</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h2>Using Docker &#43; Ansible &#43; systemd</h2>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Docker images</h3>
+        
+  <ul>
+  
+    <li>Docker is like git for servers</li>
+  
+    <li>A Docker <b>image</b> is a git commit - a snapshot</li>
+  
+    <li>Images are used to create <b>containers</b> - running environments based off of an image</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Creating images: Option 1</h3>
+        
+  <ul>
+  
+    <li>Start with a <b>base image</b> (e.g. debian:wheezy)</li>
+  
+    <li>Make some changes</li>
+  
+    <li>Commit</li>
+  
+  </ul>
+
+  
+  <p>
+    This is fine, but it&#39;s tough to reproduce
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Creating images: Option 2</h3>
+        
+  <ul>
+  
+    <li>Create a Dockerfile</li>
+  
+    <li>Start with a <b>base image</b></li>
+  
+    <li>Add a series of <b>instructions</b> (e.g. RUN, COPY)</li>
+  
+    <li>use &#34;docker build&#34; to create an image</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Dockerfile: Example</h3>
+        
+  
+  <div class="code"><pre>FROM debian:wheezy
+MAINTAINER Aditya Mukerjee &lt;dev@chimeracoder.net&gt;
+
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get -qq update --fix-missing
+RUN apt-get install -y bash wget ca-certificates git
+RUN wget https://storage.googleapis.com/golang/go1.3.3.linux-amd64.tar.gz 
+RUN tar -C /usr/local -xzf go1.3.3.linux-amd64.tar.gz
+ENV GOPATH /root/go
+
+RUN /usr/local/go/bin/go get github.com/ChimeraCoder/go-yo
+
+CMD [&#34;/root/go/bin/go-yo&#34;]</pre></div>
+  
+
+  
+  <p>
+    (There&#39;s actually an even simpler way for Go apps, but we&#39;ll get to that)
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Running a Docker container</h3>
+        
+  
+  <div class="code"><pre>$ docker run -d --name -myapp --rm -p 80:8080 &lt;image-id&gt;</pre></div>
+  
+
+  <ul>
+  
+    <li>This will <b>create</b> a container ,</li>
+  
+    <li>running as a <b>daemon</b>,</li>
+  
+    <li>with the <b>name</b> myapp,</li>
+  
+    <li>which will be <b>deleted</b> after it&#39;s stopped,</li>
+  
+    <li>and which <b>publishes</b> port 8080 inside the container,</li>
+  
+    <li>(to be accessed through port 80 on the host),</li>
+  
+    <li><b>based off</b> &lt;image-id&gt;</li>
+  
+  </ul>
+
+  
+  <div class="code"><pre>$ docker stop myapp
+$ docker start myapp #if we hadn&#39;t deleted it, that is</pre></div>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>What&#39;s this daemonization about?</h3>
+        
+  <ul>
+  
+    <li>Docker uses a daemon running as root</li>
+  
+    <li>Even if you run a container in the foreground, docker is still privileged</li>
+  
+    <li>...because containers <b>share</b> kernel resources - which is good for performance!</li>
+  
+    <li>For this reason, it&#39;s not a good idea to allow potentially adversarial containers</li>
+  
+    <li>ie, assume all containers are <b>trusted</b></li>
+  
+    <li>Docker provides isolation for <b>reliability</b> and <b>reproducibility</b></li>
+  
+    <li>For true security, use virtualization</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>What should I put in my container?</h3>
+        
+  <ul>
+  
+    <li>Containers are <b>cheap</b> - use them generously</li>
+  
+    <li>Rule of thumb: one container per service (top-level process)</li>
+  
+    <li>e.g. PostgreSQL, nginx, app server, and memcached are all separate containers</li>
+  
+    <li>Related reading: <b>service-oriented architecture</b></li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>But how do my containers talk to each other?</h3>
+        
+  <ul>
+  
+    <li>Dockerfiles can contain the EXPOSE keyword</li>
+  
+  </ul>
+
+  
+  <div class="code"><pre>EXPOSE 5432</pre></div>
+  
+
+  <ul>
+  
+    <li>This has <i>nothing to do with port publishing</i> (the -p flag)</li>
+  
+  </ul>
+
+  
+  <div class="code"><pre>$ docker run -d --name pq training/postgres # container names and IDs are interchangeable
+$ docker run -d --name myapp --link pq:pq &lt;image-id&gt;</pre></div>
+  
+
+  <ul>
+  
+    <li>Docker automatically sets some  <b>environment variables</b> in the app container, e.g:</li>
+  
+  </ul>
+
+  
+  <div class="code"><pre>PQ_PORT_5432_TCP_ADDR=172.&lt;xx&gt;.&lt;xx&gt;.&lt;xx&gt;</pre></div>
+  
+
+  <ul>
+  
+    <li>Containers use these environment variables to communicate with other local containers</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h2>Monitoring containers</h2>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>systemd</h3>
+        
+  <ul>
+  
+    <li>systemd runs as PID 1 and <b>monitors</b> processes (e.g. restarting failed processes)</li>
+  
+    <li>If our webapp crashes (or the machine reboots) for any reason, we want to restart it</li>
+  
+    <li>...but only once the database is already up!</li>
+  
+  </ul>
+
+  
+  <div class="code"><pre>[Unit]
+Description=Victini
+After=docker.service
+Requires=docker.service
+Requires=postgresql.service
+
+[Service]
+TimeoutStartSec=0
+ExecStartPre=-/usr/bin/docker kill webapp
+ExecStartPre=-/usr/bin/docker rm webapp
+ExecStartPre=/usr/bin/docker pull chimeracoder/webapp
+ExecStart=/usr/bin/docker run --name webapp -p 8000:8000 --link postgresql:postgresql chimeracoder/webapp
+
+[Install]
+WantedBy=multi-user.target</pre></div>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>A few things to note</h3>
+        
+  <ul>
+  
+    <li>The ExecStartPre commands are only necessary because of Docker PID complications</li>
+  
+    <li>Also, we need to use <b>exec mode</b> - ie</li>
+  
+  </ul>
+
+  
+  <div class="code"><pre>ENTRYPOINT [&#34;/path/to/app/app&#34;]</pre></div>
+  
+
+  
+  <p>
+    not
+  </p>
+  
+
+  
+  <div class="code"><pre>ENTRYPOINT &#34;/path/to/app/app&#34;</pre></div>
+  
+
+  
+  <p>
+    The latter is equivalent to
+  </p>
+  
+
+  
+  <div class="code"><pre>ENTRYPOINT [&#34;/bin/sh -c /path/to/app&#34;]</pre></div>
+  
+
+  
+  <p>
+    so PID 1 <i>inside the container</i> would be /bin/sh, not our app
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h2>Setting up containers</h2>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Ansible</h3>
+        
+  <ul>
+  
+    <li>Containers group your services into <b>components</b></li>
+  
+    <li>Ansible provides the scaffolding to <b>organize</b> your components</li>
+  
+  </ul>
+
+<div class="image">
+  <img src="ansible_docker_blog.png">
+</div>
+
+  
+  <p>
+    (<a href="http://www.ansible.com/docker" target="_blank">image courtesy of Ansible blog (&#34;Ansible is the Best Way to Manage Docker&#34;)</a>)
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>A basic Ansible playbook</h3>
+        
+  
+  <div class="code"><pre>- hosts: webapp
+  remote_user: root
+
+  tasks:
+  - name: Copy webapp systemd service file
+    synchronize: src=&#34;webapp.service&#34; dest=&#34;/etc/systemd/system/webapp.service&#34;
+
+  - name: Copy postgresql systemd service file
+    synchronize: src=&#34;postgresql.service&#34; dest=&#34;/etc/systemd/system/postgresql.service&#34;
+
+  # Assumes RHEL-based server (Red Hat/Fedora/CentOS)
+  # Change to desired distro package manager
+  - name: Install docker
+    yum: name=&#34;docker-io&#34; state=&#34;present&#34;
+
+  - name: Run systemd service for postgresql
+    service: name=&#34;postgresql&#34; enabled=&#34;yes&#34; state=&#34;started&#34;
+
+  - name: Run systemd service for webapp
+    service: name=&#34;webapp&#34; enabled=&#34;yes&#34; state=&#34;started&#34;</pre></div>
+  
+
+      
+      </article>
+  
+  
+
+      <article>
+        <h3>Thank you</h1>
+        
+          <div class="presenter">
+            
+  
+  <p>
+    Aditya Mukerjee
+  </p>
+  
+
+          </div>
+        
+          <div class="presenter">
+            <p class="link"><a href="http://www.adityamukerjee.net" target="_blank">http://www.adityamukerjee.net</a></p><p class="link"><a href="http://twitter.com/chimeracoder" target="_blank">@chimeracoder</a></p>
+          </div>
+        
+      </article>
+
+  </body>
+  
+</html>
