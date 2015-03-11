@@ -58,11 +58,12 @@ http://www.adityamukerjee.net
 
 * What You Need To Know About Systemd
 - Use systemd.
+- (Or don't, but we're only going to cover systemd.)
 
 
 * Using Docker + Ansible + systemd
 
-* Docker *images*
+* Docker images
 - Docker is like git for servers
 - A Docker *image* is a git commit - a snapshot
 - Images are used to create *containers* - running environments based off of an image
@@ -177,7 +178,7 @@ This is fine, but it's tough to reproduce
 
 * A few things to note
 - The ExecStartPre commands are only necessary because of Docker PID complications
-- Also, we need to use *exec mode* - ie
+- Also, we need to use *exec*mode* - ie
    ENTRYPOINT ["/path/to/app/app"]
 
 not
