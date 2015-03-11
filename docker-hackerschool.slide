@@ -1,0 +1,225 @@
+Docker: Getting Started
+Hacker School
+11 Mar 2015
+
+Aditya Mukerjee
+
+http://www.adityamukerjee.net
+@chimeracoder
+
+* 
+.image 88x31.png
+
+* Why Containers Matter
+
+* Sysadmin Life (the old days)
+- Wake up in the middle of the night to a call - server is down!
+- Notice a massive traffic spike - try and provision an old sever to handle it
+- use an old machine that you had lying around
+- uh-oh... which version of glibc did I have last time?
+- wait... now my package manager is complaining about cyclic dependencies
+- ...did something change upstream?
+- ... ... and did I remember to twiddle db.conf?
+- ... why did we take this machine offline, anyway?
+- Server is in an inconsistent state - $%@#!!!!!!!
+
+* DevOps life (today)
+- Wake up in the middle of the night to a call - server is down!
+- Run a single command that provisions a new server to a known working state
+- Go back to sleep.
+
+* We have version control for code. Why not servers?
+
+* History of Containerization
+
+* Ancestry: nice, cpulimit
+- *nice* lowers priority
+- cpulimit repeatedly sends SIGSTOP (kill -19) and SIGCONT (kill -18) to processes
+- Disadvantages: blunt, brittle, manual
+
+* Birth: cgroups
+- *cgroups* (formerly "control groups") in Linux were released in 2007
+- Limits access to resources for a collection of processes at a time
+- e.g. "Make sure ffmpeg doesn't take up too much CPU/RAM"
+
+* Adolescence: LXC
+- *LXC* ("Linux Containers") was introduced in 2008
+- LXC ≈ cgroups + namespace isolation
+- Prevent processes from even "seeing" unavailable resources
+- Available in the kernel, but inconvenient to use in userland
+
+* Today: Docker, systemd-nspawn, and others
+- Docker† and systemd-nspawn both provide userland utilities for using LXC-based containers
+- Docker is a bit older and more widely used
+- systemd-nspawn has some attractive features that Docker currently lacks
+(†Technically Docker now uses libcontainer instead of lxc, but that's not an issue for us, and in any case I think I just well-actually-ed myself)
+
+* Wait what the heck is this "systemd" thing anyway?
+
+* What You Need To Know About Systemd
+- Use systemd.
+
+
+* Using Docker + Ansible + systemd
+
+* Docker *images*
+- Docker is like git for servers
+- A Docker *image* is a git commit - a snapshot
+- Images are used to create *containers* - running environments based off of an image
+
+
+* Creating images: Option 1
+- Start with a *base*image* (e.g. debian:wheezy)
+- Make some changes
+- Commit
+
+This is fine, but it's tough to reproduce
+
+* Creating images: Option 2
+- Create a Dockerfile
+- Start with a *base*image*
+- Add a series of *instructions* (e.g. RUN, COPY)
+- use "docker build" to create an image
+
+
+* Dockerfile: Example
+
+    FROM debian:wheezy
+    MAINTAINER Aditya Mukerjee <dev@chimeracoder.net>
+
+    ENV DEBIAN_FRONTEND noninteractive
+    RUN apt-get -qq update --fix-missing
+    RUN apt-get install -y bash wget ca-certificates git
+    RUN wget https://storage.googleapis.com/golang/go1.3.3.linux-amd64.tar.gz 
+    RUN tar -C /usr/local -xzf go1.3.3.linux-amd64.tar.gz
+    ENV GOPATH /root/go
+    
+    RUN /usr/local/go/bin/go get github.com/ChimeraCoder/go-yo
+    
+    CMD ["/root/go/bin/go-yo"]
+
+(There's actually an even simpler way for Go apps, but we'll get to that)
+    
+
+* Running a Docker container
+
+    $ docker run -d --name -myapp --rm -p 80:8080 <image-id>
+
+- This will *create* a container ,
+- running as a *daemon*,
+- with the *name* myapp,
+- which will be *deleted* after it's stopped,
+- and which *publishes* port 8080 inside the container,
+- (to be accessed through port 80 on the host),
+- *based*off* <image-id>
+
+    $ docker stop myapp
+    $ docker start myapp #if we hadn't deleted it, that is
+
+
+* What's this daemonization about?
+
+- Docker uses a daemon running as root
+- Even if you run a container in the foreground, docker is still privileged
+- ...because containers *share* kernel resources - which is good for performance!
+- For this reason, it's not a good idea to allow potentially adversarial containers
+- ie, assume all containers are *trusted*
+- Docker provides isolation for *reliability* and *reproducibility*
+- For true security, use virtualization
+
+* What should I put in my container?
+
+- Containers are *cheap* - use them generously
+- Rule of thumb: one container per service (top-level process)
+- e.g. PostgreSQL, nginx, app server, and memcached are all separate containers
+- Related reading: *service-oriented*architecture*
+
+
+* But how do my containers talk to each other?
+- Dockerfiles can contain the EXPOSE keyword
+    EXPOSE 5432
+- This has _nothing_to_do_with_port_publishing_ (the -p flag)
+
+ $ docker run -d --name pq training/postgres # container names and IDs are interchangeable
+ $ docker run -d --name myapp --link pq:pq <image-id>
+
+- Docker automatically sets some  *environment*variables* in the app container, e.g:
+
+    PQ_PORT_5432_TCP_ADDR=172.<xx>.<xx>.<xx>
+
+- Containers use these environment variables to communicate with other local containers
+
+
+* Monitoring containers
+
+* systemd
+- systemd runs as PID 1 and *monitors* processes (e.g. restarting failed processes)
+- If our webapp crashes (or the machine reboots) for any reason, we want to restart it
+- ...but only once the database is already up!
+
+
+    [Unit]
+    Description=Victini
+    After=docker.service
+    Requires=docker.service
+    Requires=postgresql.service
+    
+    [Service]
+    TimeoutStartSec=0
+    ExecStartPre=-/usr/bin/docker kill webapp
+    ExecStartPre=-/usr/bin/docker rm webapp
+    ExecStartPre=/usr/bin/docker pull chimeracoder/webapp
+    ExecStart=/usr/bin/docker run --name webapp -p 8000:8000 --link postgresql:postgresql chimeracoder/webapp
+    
+    [Install]
+    WantedBy=multi-user.target
+
+
+* A few things to note
+- The ExecStartPre commands are only necessary because of Docker PID complications
+- Also, we need to use *exec mode* - ie
+   ENTRYPOINT ["/path/to/app/app"]
+
+not
+
+   ENTRYPOINT "/path/to/app/app"
+
+The latter is equivalent to
+
+   ENTRYPOINT ["/bin/sh -c /path/to/app"]
+
+so PID 1 _inside_the_container_ would be /bin/sh, not our app
+
+
+* Setting up containers
+
+* Ansible
+- Containers group your services into *components*
+- Ansible provides the scaffolding to *organize* your components
+.image ansible_docker_blog.png
+
+([[http://www.ansible.com/docker][image courtesy of Ansible blog ("Ansible is the Best Way to Manage Docker")]])
+
+* A basic Ansible playbook
+    - hosts: webapp
+      remote_user: root
+    
+      tasks:
+      - name: Copy webapp systemd service file
+        synchronize: src="webapp.service" dest="/etc/systemd/system/webapp.service"
+    
+      - name: Copy postgresql systemd service file
+        synchronize: src="postgresql.service" dest="/etc/systemd/system/postgresql.service"
+    
+      # Assumes RHEL-based server (Red Hat/Fedora/CentOS)
+      # Change to desired distro package manager
+      - name: Install docker
+        yum: name="docker-io" state="present"
+    
+      - name: Run systemd service for postgresql
+        service: name="postgresql" enabled="yes" state="started"
+    
+      - name: Run systemd service for webapp
+        service: name="webapp" enabled="yes" state="started"
+    
+
